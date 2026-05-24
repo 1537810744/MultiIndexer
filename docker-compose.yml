@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: mq-indexer
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - indexer-net
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  listener:
+    build: ./listener
+    container_name: listener-service
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+      - MODE=mock
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - indexer-net
+    restart: unless-stopped
+
+  fake-indexer:
+    build: ./fake-indexer
+    container_name: fake-indexer-service
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - indexer-net
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  indexer-net:
+    driver: bridge

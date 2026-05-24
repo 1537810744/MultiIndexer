@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go version *)",
+      "Bash(go mod *)",
+      "Bash(docker --version)",
+      "Bash(docker-compose --version)",
+      "Bash(docker-compose up *)",
+      "Bash(tasklist)",
+      "Read(//c/Program Files/Docker/Docker/**)",
+      "Read(//c/Program Files \\(x86\\)/Docker/Docker/**)",
+      "Read(//c/ProgramData/**)",
+      "Bash(/c/Program Files/Docker/Docker/Docker Desktop.exe *)",
+      "Bash(docker compose up *)",
+      "Read(//c/Users/admin/.docker/**)",
+      "Bash(taskkill /F /IM \"Docker Desktop.exe\")",
+      "Bash(\"/c/Program Files/Docker/Docker/Docker Desktop.exe\")",
+      "Bash(docker info *)",
+      "Bash(docker context ls *)",
+      "Bash(wsl -l -v)",
+      "Bash(/mnt/c/Program Files/Docker/Docker/Docker Desktop.exe *)",
+      "Bash(cmd.exe *)"
+    ]
+  }
+}
