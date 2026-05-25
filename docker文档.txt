@@ -1,0 +1,12 @@
+请专门写一个docker相关的解答。
+dockerfile
+dockercompose
+docker命令
+为什么微服务没有docker化还要写docker文件？
+为什么数据库的端口写在dockercompose里面？ 
+怎么容器化的？ 怎么启动的？ 
+dockercompose是容器的一键启动项？ 和在desktop手动启动是等价的？  如果是这样 和docker 命令有何区别？
+微服务的两阶段构建的dockerfile写法是固定的吗？
+启动过程中发生了什么？ 从最开始还没有文档开始。到redis，mysql，rabbitmq启动这个过程发生了什么？
+密码和用户是在哪里设置的？ 
+docker常见命令。怎么启动docker comepose？  
