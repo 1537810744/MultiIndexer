@@ -1,0 +1,7 @@
+正儿八经的主流监听方式 是轮询还是websocket长连接？ 
+要不要用Geth？
+块重组的主流解决方式？回滚？ 延迟确认？
+下次怎么从上次监听到的块开始监听？主流解决方式？ 游标？
+实现dockerfile。 应该怎么做？先用dockerfile制作出微服务镜像，然后像redis那些镜像一样用dockercompose一键启动？
+
+先别写：https://github.com/GMWalletApp/epusdt/tree/master 看下他们是如何解决的？ 
