@@ -1,25 +1,35 @@
-// go.mod 是 Go Modules（Go 1.11+ 引入的官方依赖管理工具）的核心配置文件。
-// 它的作用类似于 Node.js 的 package.json、Python 的 requirements.txt、Java 的 pom.xml。
-// 里面记录了：模块名、Go 语言最低版本、直接依赖的第三方库及其精确版本。
-//
-// 【名词解释：Module（模块）】
-// 在 Go 中，一个模块是一个由 go.mod 文件标记的代码集合，通常对应一个 Git 仓库。
-// 模块可以被其他项目引用，实现代码复用。
-
-// module 指令：声明本模块的名称（也叫"模块路径"）。
-// 通常用代码托管地址 + 项目路径的形式，比如 github.com/yourname/project。
-// 这里用短名 "listener"，因为在当前项目内部使用，不需要对外发布。
 module listener
 
-// go 指令：指定编译本模块所需的最低 Go 语言版本。
-// 如果你用 Go 1.21 编译器去编译一个要求 go 1.22 的模块，编译器会报错并拒绝构建。
-// 这保证了代码不会因为编译器版本过老而默默出现兼容性问题。
 go 1.22
 
-// require 指令：声明本模块直接依赖的第三方包及其最低版本。
-// 这里的 amqp091-go 是 RabbitMQ 官方维护的 Go 客户端库。
-// v1.9.0 是语义化版本号（SemVer）：v<主版本>.<次版本>.<补丁版本>。
-//   主版本变化 = API 不兼容的breaking change
-//   次版本变化 = 向后兼容的新功能
-//   补丁版本变化 = 向后兼容的 bug 修复
-require github.com/rabbitmq/amqp091-go v1.9.0
+require (
+	github.com/ethereum/go-ethereum v1.14.12
+	github.com/rabbitmq/amqp091-go v1.9.0
+)
+
+require (
+	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/StackExchange/wmi v1.2.1 // indirect
+	github.com/bits-and-blooms/bitset v1.13.0 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/gnark-crypto v0.12.1 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
+	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
+	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
+	github.com/ethereum/go-verkle v0.1.1-0.20240829091221-dffa7562dbe9 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/holiman/uint256 v1.3.1 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
+	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+	github.com/supranational/blst v0.3.13 // indirect
+	github.com/tklauser/go-sysconf v0.3.12 // indirect
+	github.com/tklauser/numcpus v0.6.1 // indirect
+	golang.org/x/crypto v0.22.0 // indirect
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa // indirect
+	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
+)
