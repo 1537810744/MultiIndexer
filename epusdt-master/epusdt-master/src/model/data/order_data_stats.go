@@ -1,0 +1,319 @@
+package data
+
+import (
+	"time"
+
+	"github.com/GMWalletApp/epusdt/model/dao"
+	"github.com/GMWalletApp/epusdt/model/mdb"
+)
+
+// DailyStat is one bucket of day-level aggregation used by the
+// dashboard trend charts.
+// Field "Day" holds "YYYY-MM-DD" for daily buckets and
+// "YYYY-MM-DD HH:00" for hourly buckets.
+type DailyStat struct {
+	Day          string  `json:"day"` // "YYYY-MM-DD" (daily) or "YYYY-MM-DD HH:00" (hourly)
+	OrderCount   int64   `json:"order_count"`
+	SuccessCount int64   `json:"success_count"`
+	TotalAmount  float64 `json:"total_amount"`  // sum of amount (fiat)
+	ActualAmount float64 `json:"actual_amount"` // sum of actual_amount (token)
+}
+
+// AddressDailyStat buckets actual_amount by (day, receive_address) for
+// the stacked asset-trend chart.
+// Field "Day" holds "YYYY-MM-DD" (daily) or "YYYY-MM-DD HH:00" (hourly).
+type AddressDailyStat struct {
+	Day          string  `json:"day"`
+	Address      string  `json:"address"`
+	ActualAmount float64 `json:"actual_amount"`
+}
+
+// DailyOrderStats returns per-day counts/amounts within [start, end],
+// zero-filling any days in the range that have no orders.
+// Only orders in StatusPaySuccess contribute to Amount sums — that's
+// what the user means by "流水". Pending orders count toward OrderCount
+// to keep成交率 computable.
+func DailyOrderStats(start, end time.Time) ([]DailyStat, error) {
+	var rows []DailyStat
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select(`DATE(created_at) AS day,
+            COUNT(*) AS order_count,
+            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS success_count,
+            SUM(CASE WHEN status = ? THEN amount ELSE 0 END) AS total_amount,
+            SUM(CASE WHEN status = ? THEN actual_amount ELSE 0 END) AS actual_amount`,
+			mdb.StatusPaySuccess, mdb.StatusPaySuccess, mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Group("DATE(created_at)").
+		Order("day ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return fillDailyStats(start, end, rows), nil
+}
+
+// HourlyOrderStats returns per-hour counts/amounts within [start, end],
+// zero-filling any hours that have no orders.
+func HourlyOrderStats(start, end time.Time) ([]DailyStat, error) {
+	var rows []DailyStat
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select(`strftime('%Y-%m-%d %H:00', created_at) AS day,
+            COUNT(*) AS order_count,
+            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS success_count,
+            SUM(CASE WHEN status = ? THEN amount ELSE 0 END) AS total_amount,
+            SUM(CASE WHEN status = ? THEN actual_amount ELSE 0 END) AS actual_amount`,
+			mdb.StatusPaySuccess, mdb.StatusPaySuccess, mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Group("strftime('%Y-%m-%d %H:00', created_at)").
+		Order("day ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return fillHourlyStats(start, end, rows), nil
+}
+
+// fillDailyStats generates a zero-filled slice covering every calendar
+// day in [start, end]. Days present in rows overwrite the zero entries.
+func fillDailyStats(start, end time.Time, rows []DailyStat) []DailyStat {
+	byDay := make(map[string]DailyStat, len(rows))
+	for _, r := range rows {
+		byDay[r.Day] = r
+	}
+	var out []DailyStat
+	cur := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+	last := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, end.Location())
+	for !cur.After(last) {
+		key := cur.Format("2006-01-02")
+		if r, ok := byDay[key]; ok {
+			out = append(out, r)
+		} else {
+			out = append(out, DailyStat{Day: key})
+		}
+		cur = cur.AddDate(0, 0, 1)
+	}
+	return out
+}
+
+// fillHourlyStats generates a zero-filled slice covering every whole
+// hour in [start, end]. Hours present in rows overwrite the zero entries.
+func fillHourlyStats(start, end time.Time, rows []DailyStat) []DailyStat {
+	byHour := make(map[string]DailyStat, len(rows))
+	for _, r := range rows {
+		byHour[r.Day] = r
+	}
+	var out []DailyStat
+	cur := time.Date(start.Year(), start.Month(), start.Day(), start.Hour(), 0, 0, 0, start.Location())
+	endHour := time.Date(end.Year(), end.Month(), end.Day(), end.Hour(), 0, 0, 0, end.Location())
+	for !cur.After(endHour) {
+		key := cur.Format("2006-01-02 15:00")
+		if r, ok := byHour[key]; ok {
+			out = append(out, r)
+		} else {
+			out = append(out, DailyStat{Day: key})
+		}
+		cur = cur.Add(time.Hour)
+	}
+	return out
+}
+
+// DailyAssetByAddress groups paid actual_amount by (day, receive_address)
+// for the per-address stacked chart, zero-filling missing days.
+func DailyAssetByAddress(start, end time.Time) ([]AddressDailyStat, error) {
+	var rows []AddressDailyStat
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select("DATE(created_at) AS day, receive_address AS address, SUM(actual_amount) AS actual_amount").
+		Where("status = ?", mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Group("DATE(created_at), receive_address").
+		Order("day ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return fillAddressDailyStats(start, end, rows), nil
+}
+
+// HourlyAssetByAddress groups paid actual_amount by (hour, receive_address)
+// for the per-address stacked chart, zero-filling missing hours.
+func HourlyAssetByAddress(start, end time.Time) ([]AddressDailyStat, error) {
+	var rows []AddressDailyStat
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select("strftime('%Y-%m-%d %H:00', created_at) AS day, receive_address AS address, SUM(actual_amount) AS actual_amount").
+		Where("status = ?", mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Group("strftime('%Y-%m-%d %H:00', created_at), receive_address").
+		Order("day ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return fillAddressHourlyStats(start, end, rows), nil
+}
+
+// fillAddressDailyStats zero-fills missing day×address combinations.
+// All addresses that appear in rows are represented for every day in range.
+func fillAddressDailyStats(start, end time.Time, rows []AddressDailyStat) []AddressDailyStat {
+	return fillAddressStats(start, end, rows, false)
+}
+
+// fillAddressHourlyStats zero-fills missing hour×address combinations.
+func fillAddressHourlyStats(start, end time.Time, rows []AddressDailyStat) []AddressDailyStat {
+	return fillAddressStats(start, end, rows, true)
+}
+
+func fillAddressStats(start, end time.Time, rows []AddressDailyStat, hourly bool) []AddressDailyStat {
+	type key struct{ day, addr string }
+	byKey := make(map[key]float64, len(rows))
+	addrSet := make(map[string]struct{}, 4)
+	for _, r := range rows {
+		byKey[key{r.Day, r.Address}] = r.ActualAmount
+		addrSet[r.Address] = struct{}{}
+	}
+	if len(addrSet) == 0 {
+		return rows
+	}
+	var periods []string
+	if hourly {
+		cur := time.Date(start.Year(), start.Month(), start.Day(), start.Hour(), 0, 0, 0, start.Location())
+		endH := time.Date(end.Year(), end.Month(), end.Day(), end.Hour(), 0, 0, 0, end.Location())
+		for !cur.After(endH) {
+			periods = append(periods, cur.Format("2006-01-02 15:00"))
+			cur = cur.Add(time.Hour)
+		}
+	} else {
+		cur := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, start.Location())
+		last := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, end.Location())
+		for !cur.After(last) {
+			periods = append(periods, cur.Format("2006-01-02"))
+			cur = cur.AddDate(0, 0, 1)
+		}
+	}
+	var out []AddressDailyStat
+	for _, day := range periods {
+		for addr := range addrSet {
+			out = append(out, AddressDailyStat{
+				Day:          day,
+				Address:      addr,
+				ActualAmount: byKey[key{day, addr}],
+			})
+		}
+	}
+	return out
+}
+
+// SumPaidActualAmount returns the total paid actual_amount across all
+// time. Used by the overview "total asset" card.
+func SumPaidActualAmount() (float64, error) {
+	var sum float64
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select("COALESCE(SUM(actual_amount), 0)").
+		Where("status = ?", mdb.StatusPaySuccess).
+		Scan(&sum).Error
+	return sum, err
+}
+
+// PaidStatsInRange returns (order_count, success_count, actual_sum) for
+// a given time range. Caller chooses the range (today / last 7 days).
+func PaidStatsInRange(start, end time.Time) (int64, int64, float64, error) {
+	type row struct {
+		OrderCount   int64
+		SuccessCount int64
+		ActualSum    float64
+	}
+	var r row
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select(`COUNT(*) AS order_count,
+            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS success_count,
+            SUM(CASE WHEN status = ? THEN actual_amount ELSE 0 END) AS actual_sum`,
+			mdb.StatusPaySuccess, mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Scan(&r).Error
+	return r.OrderCount, r.SuccessCount, r.ActualSum, err
+}
+
+// ActiveAddressCountInRange returns the number of distinct wallet addresses
+// that appear in at least one order within [start, end].
+func ActiveAddressCountInRange(start, end time.Time) (int64, error) {
+	var count int64
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Distinct("receive_address").
+		Count(&count).Error
+	return count, err
+}
+
+// AveragePaymentDurationSeconds returns the mean elapsed time between
+// created_at and updated_at for orders that reached StatusPaySuccess
+// in the given range. Zero-safe when no rows match.
+func AveragePaymentDurationSeconds(start, end time.Time) (float64, error) {
+	type row struct {
+		Avg float64
+	}
+	var r row
+	// Using TIMESTAMPDIFF would be MySQL-specific. Fetch the raw
+	// columns and compute in Go — trend windows are small enough.
+	type pair struct {
+		CreatedAt time.Time
+		UpdatedAt time.Time
+	}
+	var pairs []pair
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Select("created_at, updated_at").
+		Where("status = ?", mdb.StatusPaySuccess).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Scan(&pairs).Error
+	if err != nil {
+		return 0, err
+	}
+	if len(pairs) == 0 {
+		return 0, nil
+	}
+	total := 0.0
+	for _, p := range pairs {
+		total += p.UpdatedAt.Sub(p.CreatedAt).Seconds()
+	}
+	r.Avg = total / float64(len(pairs))
+	return r.Avg, nil
+}
+
+// CountExpiredInRange returns the number of StatusExpired orders in range.
+func CountExpiredInRange(start, end time.Time) (int64, error) {
+	var n int64
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Where("status = ?", mdb.StatusExpired).
+		Where("created_at >= ?", start).
+		Where("created_at <= ?", end).
+		Count(&n).Error
+	return n, err
+}
+
+// RecentOrders returns the latest N orders regardless of status.
+func RecentOrders(limit int) ([]mdb.Orders, error) {
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	var rows []mdb.Orders
+	err := dao.Mdb.Model(&mdb.Orders{}).
+		Order("id DESC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}
+
+// CountEnabledChains counts chains where Enabled=true.
+func CountEnabledChains() (int64, error) {
+	var n int64
+	err := dao.Mdb.Model(&mdb.Chain{}).Where("enabled = ?", true).Count(&n).Error
+	return n, err
+}

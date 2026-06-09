@@ -67,8 +67,8 @@ func main() {
 	mysqlDSN := getEnv("MYSQL_DSN", "indexer:indexerpass@tcp(localhost:3307)/indexer")
 	redisURL := getEnv("REDIS_URL", "localhost:6379")
 	thresholdStr := getEnv("ALERT_THRESHOLD_USD", "100000") // 大额告警阈值（美元）
-	ethWallet := getEnv("ETH_WALLET", "")                     // 要监控的 ETH/BSC 钱包地址
-	solWallet := getEnv("SOL_WALLET", "")                     // 要监控的 Solana 钱包地址
+	ethWallet := getEnv("ETH_WALLET", "")                   // 要监控的 ETH/BSC 钱包地址
+	solWallet := getEnv("SOL_WALLET", "")                   // 要监控的 Solana 钱包地址
 
 	// strconv.ParseFloat 将字符串转为浮点数
 	threshold, err := strconv.ParseFloat(thresholdStr, 64)
@@ -220,6 +220,7 @@ func shortHash(hash string) string {
 		return hash[:6] + "..." + hash[len(hash)-4:]
 	}
 	return hash
+
 }
 
 // 【Go 语法：空白导入（blank import）的变体】

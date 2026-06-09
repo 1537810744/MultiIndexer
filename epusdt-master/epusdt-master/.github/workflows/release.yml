@@ -1,0 +1,86 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "要发布的 tag（例如 v1.2.3，必须已存在）"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  goreleaser:
+    name: Build And Publish Binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref }}
+
+      - name: Ensure Tag Commit Is On Default Branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch origin "$DEFAULT_BRANCH" --depth=1
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "tag ${GITHUB_REF_NAME} must reference a commit reachable from ${DEFAULT_BRANCH}"
+            exit 1
+          fi
+
+      - name: Set Up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: src/go.mod
+
+      - name: Select Previous Stable Tag For Final Releases
+        run: |
+          current_tag="${GITHUB_REF_NAME}"
+          if [[ "$current_tag" == *-* ]]; then
+            echo "prerelease tag detected: $current_tag"
+            exit 0
+          fi
+
+          previous_stable_tag="$(
+            git tag --list 'v*' --sort=-version:refname |
+              grep -Fxv "$current_tag" |
+              grep -Ev -- '-' |
+              head -n 1
+          )"
+
+          if [[ -n "$previous_stable_tag" ]]; then
+            echo "using previous stable tag: $previous_stable_tag"
+            echo "GORELEASER_PREVIOUS_TAG=$previous_stable_tag" >> "$GITHUB_ENV"
+          else
+            echo "no previous stable tag found"
+          fi
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          workdir: src
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest Release Artifacts
+        uses: actions/attest@v4
+        with:
+          subject-checksums: src/dist/SHA256SUMS

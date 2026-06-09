@@ -1,0 +1,111 @@
+name: Bug 反馈
+description: 有一个 bug 需要解决
+title: "发现bug："
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 提 ISSUE 须知
+
+        请先阅读文档：
+        - [epusdt 文档](https://epusdt.com/)
+
+        如果仍有问题，请先在 issue 列表中搜索是否已有相同问题：
+        - [Issue 列表](https://github.com/GMWalletApp/epusdt/issues)
+
+        如果没有找到相关问题，请按下面格式尽量完整填写，便于我们快速排查。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已阅读文档并检查常见问题
+          required: true
+        - label: 我已搜索现有 issue，确认不是重复问题
+          required: true
+        - label: 我已尽量提供可复现信息（代码、配置、日志）
+          required: true
+
+  - type: textarea
+    id: epusdt_version
+    attributes:
+      label: 1. epusdt 版本
+      description: 请提供版本号或 commit hash，避免只写“最新版”
+      placeholder: |
+        例如：
+        - v1.2.3
+        - commit: abcdef1
+    validations:
+      required: true
+
+  - type: textarea
+    id: runtime
+    attributes:
+      label: 2. 运行环境版本
+      description: 请提供语言/运行时及相关依赖版本
+      placeholder: |
+        例如：
+        - Go/Python/Node 版本：
+        - 数据库及版本：
+        - Docker 版本（如有）：
+    validations:
+      required: true
+
+  - type: textarea
+    id: os_info
+    attributes:
+      label: 3. 操作系统信息
+      description: Windows / Linux / macOS 或其他系统，请写明版本
+      placeholder: |
+        例如：
+        - Ubuntu 22.04
+        - macOS 14.6
+        - Windows Server 2022
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro_code
+    attributes:
+      label: 4. 可复现代码/配置
+      description: 请提供最小可复现代码、请求参数或配置（敏感信息请脱敏）
+      render: shell
+      placeholder: |
+        # 最小复现步骤
+        1. ...
+        2. ...
+        3. ...
+
+        # 关键请求/配置（脱敏后）
+        curl -X POST https://xxx/api/...
+        -H "Authorization: Bearer ***"
+        -d '{"amount":100,"order_id":"test-001"}'
+    validations:
+      required: true
+
+  - type: textarea
+    id: stacktrace
+    attributes:
+      label: 5. 错误日志 / 堆栈信息
+      description: 请粘贴完整报错信息、状态码、关键日志
+      render: shell
+      placeholder: |
+        例如：
+        - HTTP 状态码：
+        - 错误码：
+        - 错误堆栈：
+        - 关键日志片段：
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 可补充截图、发生时间、复现概率、已尝试修复动作等
+      placeholder: 其他你认为有帮助的信息（可选）
+    validations:
+      required: false

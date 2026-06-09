@@ -1,0 +1,62 @@
+version: 2
+
+project_name: epusdt
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: epusdt
+    main: .
+    binary: epusdt
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/GMWalletApp/epusdt/config.BuildVersion={{ .Tag }} -X github.com/GMWalletApp/epusdt/config.BuildCommit={{ .Commit }} -X github.com/GMWalletApp/epusdt/config.BuildDate={{ .Date }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: epusdt
+    ids:
+      - epusdt
+    name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - .env.example
+      - static/**
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: "SHA256SUMS"
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+release:
+  github:
+    owner: GMwalletApp
+    name: epusdt
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^fix\\(ci\\):"
+      - "^build\\(release\\):"
+      - "^Merge pull request"

@@ -1,0 +1,11 @@
+services:
+  epusdt:
+    image: gmwallet/epusdt:latest
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./env:/app/.env
+    ports:
+      - "8000:8000"
